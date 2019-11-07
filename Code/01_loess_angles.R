@@ -1,0 +1,114 @@
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+
+load("../Data/NormCusumData.RData")
+rm(list = setdiff(ls(), paste0('subject', seq(1,15,1), '_cusum_norm')))
+
+source("customFunctions.R")
+
+# Lists to be saved at the end of the for loop
+angles = vector(mode="list", length = 15L)
+loess_fits = vector(mode="list", length = 15L)
+Subjects_Features = vector(mode="list", length = 15L)
+
+for (j in 1:15) {
+  s = get(paste0("subject",j,"_cusum_norm"))
+  time = s$percent.time.from.start
+  strideLength = s$scaled.stride.len
+  strideHeight = s$scaled.stride.height
+  strideDuration = s$stride.duration
+  
+  Subjects_Features[[j]] = s
+  
+  sp = 0.2
+  LL = loess( strideLength ~ time, span = sp )
+  yhatLL = LL$fitted
+  LH = loess( strideHeight ~ time , span = sp )
+  yhatLH = LH$fitted
+  LD = loess( strideDuration ~ time , span = sp )
+  yhatLD = LD$fitted
+  
+  loess_fits[[j]] = data.frame(yhat_LoessLength = yhatLL, yhat_LoessHeight = yhatLH,
+                               yhat_LoessDuration=yhatLL)
+  
+  png(file= paste0("../Figures/LOESS_Fits_Subject",j,".png"), width= 6.5, height = 4, units="in", res=600)
+  par(mar=c(1.75, 4, 1.75, 0.2), oma=c(0.2,1,1,0.2), mfrow=c(3,1))
+  plot( strideLength)
+  lines( yhatLL , col="red" , lwd=3)
+  plot( strideHeight)
+  lines( yhatLH , col="blue" , lwd=3)
+  plot( strideDuration)
+  lines( yhatLD , col="green" , lwd=3)
+  
+  mtext(paste("LOESS Fits for Subject",j), side = 3, line = -0.5, outer = TRUE)
+  dev.off()
+  
+  m = length(strideHeight)
+  cols = rep( "" , m )  
+  
+  for ( i in 1:m ) cols[i] = rgb(1-i/m,1-i/m,1-i/m)
+  
+  k1 = 1
+  k2 = m
+  
+  #windows( 12 , 12 )
+  png(file= paste0("../Figures/LOESS_ScatterMatrix_Subject",j,".png"), width= 6.5, height = 6.5, units="in", res=600)
+  pairs(~ yhatLL[k1:k2] + yhatLH[k1:k2] + yhatLD[k1:k2] , col=cols, 
+        main = paste("Subject",j,"LOESS Scatter Matrix"), cex.axis=1.5, cex.main=1.5,
+        labels = c("LOESS Fits for Stride Length", 
+                   "LOESS Fits for Stride Height", 
+                   "LOESS Fits for Stride Duration"))
+  dev.off()
+  
+  angles_temp <- vector(mode = "numeric", length = (length(yhatLD)-1) )
+  
+  for (k in 2:(length(yhatLD)-1)) {
+    vec_kMinus1 <- c(yhatLL[k-1], yhatLH[k-1], yhatLD[k-1])
+    vec_k <- c(yhatLL[k], yhatLH[k], yhatLD[k])
+    vec_kPlus1 <- c(yhatLL[k+1], yhatLH[k+1], yhatLD[k+1])
+    
+    w1 <- vec_k - vec_kMinus1
+    w2 <- vec_kPlus1 - vec_k
+    
+    angles_temp[k] <- angle(w2,  w1)
+  }
+  
+  conv_to_degs = 360/(2*pi)
+  angles[[j]] = angles_temp * conv_to_degs
+  
+  png(file= paste0("../Figures/Angles_Subject",j,".png"), width= 6.5, height = 4, units="in", res=600)
+  plot(angles[[j]], main= paste("Angles for Subject",j), cex.axis=1.5, cex.main= 1.5, cex.lab= 1.5,
+       ylab = "Angles in Degrees", xlab="Observation No.", ylim = c(0,90), yaxt="n")
+  axis(side=2, at=seq(0,90,10))
+  dev.off()
+}
+
+
+rm(list = setdiff(ls(), c('angles','loess_fits', 'Subjects_Features') ))
+
+saveRDS(angles, "../Outputs/angles.rds")
+saveRDS(loess_fits, "../Outputs/loessFits.rds")
+saveRDS(Subjects_Features, "../Outputs/subjectFeatures.rds")
+
+#------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+############################
+####  Scratch 
+############################
+##k1 = 2349
+##k2 = 2400
+##plot( yhatLL[k1:k2] , yhatLH[k1:k2] , col=cols , xlim=c(1.10,1.40) , ylim=c(0.08,0.11) )
+##plot( yhatLL[k1:k2] , yhatLH[k1:k2])
+
+# windows( 7 , 12 )
+# par(mfrow=c(3,1))
+# plot( yhatLL[k1:k2] , yhatLH[k1:k2] , col=cols , xlim=c(0.8,1.6) , ylim=c(0.06,0.15) )
+# ##  points( yhatLL[2349] , yhatLH[2349] , col="red" , pch=18 , cex=2 )
+# plot( yhatLL[k1:k2] , yhatLD[k1:k2] , col=cols , xlim=c(0.8,1.6) , ylim=c(0.9,1.2) )
+# ##  points( yhatLL[2349] , yhatLD[2349] , col="blue" , pch=18 , cex=2 )
+# plot( yhatLH[k1:k2] , yhatLD[k1:k2] , col=cols  , 
+#           xlim=c(0.06,0.15) , ylim=c(0.9,1.2) )
+# ##  points( yhatLH[2349] , yhatLD[2349] , col="green" , pch=18 , cex=2 )

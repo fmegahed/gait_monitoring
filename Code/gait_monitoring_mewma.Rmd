@@ -1,0 +1,79 @@
+---
+title: "Gait Monitoring through MEWMA Control Charts"
+date:  "`r format(Sys.time(), '%B %d, %Y')`"
+author:
+  - name: "Fadel M. Megahed ^[Email: fmegahed@miamioh.edu | Phone: +1-513- 529-4185 | Website: <a href=\"https://miamioh.edu/fsb/directory/?up=/directory/megahefm\">Miami University Official</a>]"
+    affiliation: Farmer School of Business, Miami University
+always_allow_html: yes
+output: 
+  html_document:
+    theme: simplex
+    toc: true
+    toc_float: true
+    number_sections: true
+    df_print: paged
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = TRUE, 
+                      warning = FALSE,
+                      message = FALSE,
+                      out.width = "100%")
+knitr::opts_knit$set(global.par = TRUE)
+```
+
+# Extracting, Transforming and Loading the Datasets into R
+
+## Loading Required Packages into R
+In this code chunk, we load the required packages into R. To facilitate the installation and loading of multiple packages into R, we use the `p_load()` command from the [pacman package](https://cran.r-project.org/web/packages/pacman/pacman.pdf) -- which if not installed should be installed first using the command `install.packages("pacman")`-- to load the following packages:    
+
+* [tidyverse](https://www.tidyverse.org/), which is loaded since it loads several packages that faciltate Data Science in R
+* [DataExplorer](https://cran.r-project.org/web/packages/DataExplorer/DataExplorer.pdf), which facilitates exploratory data analysis through several built in functions.
+
+```{r packages, cache=FALSE}
+  pacman::p_load(tidyverse, magrittr, DataExplorer, knitr, kableExtra,
+                 R.matlab, fractal, gtools, MVN, spc)
+par(mar=c(0,0,0,0))
+```
+
+## Reading the Data from GitHub {.tabset .tabset-fade .tabset-pills}
+
+```{r readFromGitHub, results='asis'}
+# Loading the normalized median filtered feature data from Baghdadi et al. (2019)
+load("../Data/FeatureGeneration.RData")
+
+# Converting the fifteen data frames into one list to facilitate the manipulation of the data
+Subjects_Data <- vector(mode = "list", length = 15)
+mvn_Data <-  vector(mode = "list", length = 15)
+names(Subjects_Data) <- paste0('Subject',seq_along(1:15))
+for (i in 1:15) {
+  temp <- paste0('subject',i,'_features') %>% get()
+  Subjects_Data[[i]] <-  temp %>% 
+    lapply(running, width=60, by=60, fun=mean, trim=0, na.rm=TRUE) %>% lapply(unlist)
+  
+  cat(paste0("###", " P",i," {-} \n \n"))
+  
+  cat(paste('After applying a log transformation on the scaled stride length, 
+            height and duration, the results of the multivariate normality test
+            (Mardia) with 10,000 bootstrapped samples indicate:', 
+            mvn_Data[[i]][['multivariateNormality']][['MVN']], '\n',
+            'where NO = Data is not Multivariate Normal,',
+            'and YES = Data is Multivariate Normal. Below, we provide a Q-Q plot to depict
+            the deviations from the multivariate normal distriution. \n'))
+  
+  Subjects_Data[[i]] %>% 
+    .[c(2:4)] %>% 
+    data.frame() %>% 
+    mvn(mvnTest = "mardia", 
+        multivariatePlot = "qq",
+        R = 10000) ->
+    mvn_Data[[i]]
+  
+  cat('\n \n')
+ 
+}
+
+```
+
