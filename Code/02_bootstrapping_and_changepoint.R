@@ -5,7 +5,7 @@ source("customFunctions.R")
 angles = readRDS("../Outputs/angles.rds")
 
 first_n_angles = lapply(angles, head, n=400L)
-BootstrapSamples = lapply(first_n_angles, boot.sampling, B=10000)
+BootstrapSamples = lapply(first_n_angles, boot.sampling, B=2000)
 
 BootstrapQuantiles = vector(mode = "list", length = 15L)
 thresholds = vector(mode = "numeric", length = 15L)
@@ -13,8 +13,8 @@ signal_locations = vector(mode = "list", length = 15L)
 
 
 for (j in 1:15) {
-  BootstrapQuantiles[[j]] = apply(BootstrapSamples[[j]], MARGIN=2, FUN=quantile, prob=0.999)
-  thresholds[j] = quantile(BootstrapQuantiles[[j]], probs = 0.95)
+  BootstrapQuantiles[[j]] = apply(BootstrapSamples[[j]], MARGIN=2, FUN=quantile, prob=0.99)
+  thresholds[j] = quantile(BootstrapQuantiles[[j]], probs = 0.99)
   
   n = length(first_n_angles[[j]]) + 1
   N = length(angles[[j]])
